@@ -37,6 +37,25 @@ class AuthService:
         token = self.create_jwt(user_id, req.user.username)
         return {"token": token}
 
+    def sign_in_user(self, req: AuthRequest):
+        username = req.user.username
+        user = self._db.query(User).filter(User.username == username).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="user with this name does not exist",
+            )
+
+        if not bcrypt.checkpw(
+            req.user.password.encode(), user.hashed_password.encode()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="wrong password"
+            )
+
+        return {"token": self.create_jwt(user.id, username)}
+
     @staticmethod
     def create_jwt(id: int, username: str):
         claims = {}

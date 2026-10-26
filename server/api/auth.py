@@ -17,5 +17,7 @@ async def register_user(
 
 
 @router.post("/auth/sign_in")
-async def sign_in_user():
-    pass
+async def sign_in_user(
+    req: AuthRequest, auth_service: Annotated[AuthService, Depends()]
+):
+    return auth_service.sign_in_user(req)
