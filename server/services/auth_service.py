@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import bcrypt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, WebSocket, WebSocketException
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from starlette import status
@@ -29,10 +29,11 @@ class AuthService:
             username=req.user.username, hashed_password=hashed_password.decode()
         )
 
-        user_id = user.id
-
         self._db.add(user)
         self._db.commit()
+        self._db.refresh(user)
+
+        user_id = user.id
 
         token = self.create_jwt(user_id, req.user.username)
         return {"token": token}
@@ -70,3 +71,30 @@ class AuthService:
         )
 
         return token
+
+    @staticmethod
+    def verify_jwt(websocket: WebSocket):
+        authorization = websocket.headers.get("Authorization")
+        if authorization is None:
+            return 0, "guest"
+        try:
+            parts = authorization.split()
+            if len(parts) != 2 or parts[0].casefold() != "bearer":
+                raise JWTError()
+
+            token = parts[1]
+            payload = jwt.decode(
+                token, key=HASHING_SECRET_KEY, algorithms=[HASHING_ALGORITHM]
+            )
+
+            sub, username = payload.get("sub"), payload.get("username")
+
+            if sub is None or username is None:
+                raise JWTError()
+
+            return int(sub), username
+
+        except JWTError:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION, reason="invalid jwt"
+            )
