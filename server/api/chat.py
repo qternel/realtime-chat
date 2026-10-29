@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, WebSocket
+from fastapi import APIRouter, Depends, Path, WebSocket, WebSocketDisconnect
 
 from server.services.auth_service import AuthService
 from server.services.chat_service import ChatService, get_chat_service
@@ -16,3 +16,11 @@ async def chat(
     chat_service: Annotated[ChatService, Depends(get_chat_service)],
 ):
     user_id, username = user_data
+    await chat_service.connect(websocket, room_id, user_id)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await chat_service.broadcast(room_id, username, data)
+    except WebSocketDisconnect:
+        chat_service.disconnect(room_id, websocket)
