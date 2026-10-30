@@ -60,7 +60,7 @@ class AuthService:
     @staticmethod
     def create_jwt(id: int, username: str):
         claims = {}
-        claims.update({"sub": id})
+        claims.update({"sub": str(id)})
         claims.update({"username": username})
 
         exp = datetime.now(timezone.utc) + timedelta(minutes=60 * 24)

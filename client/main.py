@@ -2,11 +2,13 @@ import asyncio
 import json
 from datetime import datetime
 
-import httpx2
+import requests
 import websockets
 from dateutil import parser
 
-WS_URL = "ws://localhost:8000/api/ws"
+BASE_URL = "localhost:8000/api"
+WS_URL = "ws://" + BASE_URL + "/ws"
+API_URL = "http://" + BASE_URL
 
 
 async def recieve_messages(websocket: websockets.connect):
@@ -30,7 +32,24 @@ async def client():
     headers = {}
 
     if mode == 1:
-        pass
+        username = input("your username: ")
+        password = input("your password: ")
+        try:
+            rsp = requests.post(
+                API_URL + "/auth/sign_in",
+                json={"user": {"username": username, "password": password}},
+            )
+            rsp.raise_for_status()
+            if rsp.json().get("token") is None:
+                print("invalid credentials")
+                return
+
+            token = rsp.json().get("token", "")
+            print(token)
+            headers.update({"Authorization": f"Bearer {token}"})
+        except Exception as exc:
+            print(exc)
+            return
 
     room = int(input("enter room id: "))
     ws_url_room = WS_URL + f"/{room}"
@@ -62,7 +81,8 @@ async def client():
                 except asyncio.CancelledError:
                     pass
 
-    except:
+    except Exception as exc:
+        print(exc)
         print("\nconnection closed")
 
 
