@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime
 
 import httpx2
 import websockets
@@ -11,11 +12,11 @@ async def recieve_messages(websocket: websockets.connect):
     try:
         async for raw_message in websocket:
             response = json.loads(raw_message).get("message", {})
-            print(
-                f"{response.get("username")} at {response.get("sent_at")}: {response.get("text")}"
-            )
-    except websockets.ConnectionClosed:
-        print("\nconnection closed")
+            dt = response.get("sent_at")
+
+            print(f"{response.get("username")} at {dt}: {response.get("text")}")
+    except Exception as exc:  # websockets.ConnectionClosed
+        print("\nconnection closed", exc)
 
 
 async def client():
@@ -35,6 +36,8 @@ async def client():
             try:
                 while True:
                     message = await asyncio.to_thread(input)
+                    if not message:
+                        continue
 
                     if message.strip().casefold() in {"/quit", "/exit"}:
                         print("\nconnection closed")
