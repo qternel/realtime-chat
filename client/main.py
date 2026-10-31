@@ -5,6 +5,8 @@ from datetime import datetime
 import requests
 import websockets
 from dateutil import parser
+from prompt_toolkit import PromptSession
+from prompt_toolkit.patch_stdout import patch_stdout
 
 BASE_URL = "localhost:8000/api"
 WS_URL = "ws://" + BASE_URL + "/ws"
@@ -60,26 +62,30 @@ async def client():
         ) as websocket:
             print("successfully connected")
 
-            receiver_task = asyncio.create_task(recieve_messages(websocket))
-            try:
-                while True:
-                    message = await asyncio.to_thread(input)
-                    if not message:
-                        continue
+            session = PromptSession()
 
-                    if message.strip().casefold() in {"/quit", "/exit"}:
-                        print("\nconnection closed")
-                        break
-                    await websocket.send(message)
-            except websockets.ConnectionClosed:
-                print("connection closed")
-            finally:
-                receiver_task.cancel()
+            with patch_stdout():
+                receiver_task = asyncio.create_task(recieve_messages(websocket))
 
                 try:
-                    await receiver_task
-                except asyncio.CancelledError:
-                    pass
+                    while True:
+                        message = await session.prompt_async("> ")
+                        if not message:
+                            continue
+
+                        if message.strip().casefold() in {"/quit", "/exit"}:
+                            print("\nconnection closed")
+                            break
+                        await websocket.send(message)
+                except websockets.ConnectionClosed:
+                    print("connection closed")
+                finally:
+                    receiver_task.cancel()
+
+                    try:
+                        await receiver_task
+                    except asyncio.CancelledError:
+                        pass
 
     except Exception as exc:
         print(exc)
